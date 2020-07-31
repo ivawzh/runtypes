@@ -1,6 +1,7 @@
 import { Runtype, Static, create, innerValidate } from '../runtype';
 import { hasKey } from '../util';
 import show from '../show';
+import { Failure } from '..';
 
 type RecordStaticType<
   O extends { [_: string]: Runtype },
@@ -50,26 +51,36 @@ export function InternalRecord<
 >(fields: O, isPartial: Part, isReadonly: RO): InternalRecord<O, Part, RO> {
   return withExtraModifierFuncs(
     create(
-      (x, visited) => {
+      (x, visited, opts) => {
         if (x === null || x === undefined) {
           const a = create<any>(_x => ({ success: true, value: _x }), { tag: 'record', fields });
-          return { success: false, message: `Expected ${show(a)}, but was ${x}` };
+          return { success: false, errors: [{ message: `Expected ${show(a)}, but was ${x}` }] };
         }
+
+        const errors: Failure['errors'] = [];
 
         for (const key in fields) {
           if (!isPartial || (hasKey(key, x) && x[key] !== undefined)) {
             const value = isPartial || hasKey(key, x) ? x[key] : undefined;
             let validated = innerValidate(fields[key], value, visited);
             if (!validated.success) {
-              return {
-                success: false,
-                message: validated.message,
-                key: validated.key ? `${key}.${validated.key}` : key,
-              };
+              const newErrors = validated.errors.map(error => ({
+                ...error,
+                key: error.key ? `${key}.${error.key}` : key,
+              }));
+              if (opts.failFast) {
+                return {
+                  success: false,
+                  errors: newErrors,
+                };
+              } else {
+                errors.push.apply(errors, newErrors);
+              }
             }
           }
         }
 
+        if (errors.length !== 0) return { success: false, errors };
         return { success: true, value: x };
       },
       { tag: 'record', isPartial, isReadonly, fields },

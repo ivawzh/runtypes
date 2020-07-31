@@ -22,15 +22,17 @@ export type Failure = {
    */
   success: false;
 
-  /**
-   * A message indicating the reason validation failed.
-   */
-  message: string;
+  errors: Array<{
+    /**
+     * A message indicating the reason validation failed.
+     */
+    message: string;
 
-  /**
-   * A key indicating the location at which validation failed.
-   */
-  key?: string;
+    /**
+     * A key indicating the location at which validation failed.
+     */
+    key?: string;
+  }>;
 };
 
 /**

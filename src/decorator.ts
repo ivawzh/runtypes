@@ -80,9 +80,10 @@ export function checked(...runtypes: Runtype[]) {
         const parameterIndex = validParameterIndices[typeIndex];
         const validated = type.validate(args[parameterIndex]);
         if (!validated.success) {
+          // TODO: TBD exception format
           throw new ValidationError(
-            `${methodId}, argument #${parameterIndex}: ${validated.message}`,
-            validated.key,
+            `${methodId}, argument #${parameterIndex}: ${validated.errors[0].message}`,
+            validated.errors[0].key,
           );
         }
       });

@@ -1,4 +1,5 @@
 import { Runtype, Static, create, innerValidate } from '../runtype';
+import { Failure } from '..';
 
 type ArrayStaticType<E extends Runtype, RO extends boolean> = RO extends true
   ? ReadonlyArray<Static<E>>
@@ -21,25 +22,33 @@ function InternalArr<E extends Runtype, RO extends boolean>(
 ): Arr<E, RO> {
   return withExtraModifierFuncs(
     create(
-      (xs, visited) => {
+      (xs, visited, opts) => {
         if (!Array.isArray(xs)) {
           return {
             success: false,
-            message: `Expected array, but was ${xs === null ? xs : typeof xs}`,
+            errors: [
+              {
+                message: `Expected array, but was ${xs === null ? xs : typeof xs}`,
+              },
+            ],
           };
         }
-
+        const errors: Failure['errors'] = [];
         for (const x of xs) {
-          let validated = innerValidate(element, x, visited);
+          let validated = innerValidate(element, x, visited, opts);
           if (!validated.success) {
-            return {
-              success: false,
-              message: validated.message,
-              key: validated.key ? `[${xs.indexOf(x)}].${validated.key}` : `[${xs.indexOf(x)}]`,
-            };
+            const newErrors = validated.errors.map(err => ({
+              ...err,
+              key: err.key ? `[${xs.indexOf(x)}].${err.key}` : `[${xs.indexOf(x)}]`,
+            }));
+            if (opts.failFast) {
+              return { success: false, errors: newErrors };
+            } else {
+              errors.push.apply(errors, newErrors);
+            }
           }
         }
-
+        if (errors.length !== 0) return { success: false, errors: errors };
         return { success: true, value: xs };
       },
       { tag: 'array', isReadonly, element },

@@ -10,7 +10,11 @@ export interface Never extends Runtype<never> {
 export const Never = create<Never>(
   value => ({
     success: false,
-    message: `Expected nothing, but was ${value === null ? value : typeof value}`,
+    errors: [
+      {
+        message: `Expected nothing, but was ${value === null ? value : typeof value}`,
+      },
+    ],
   }),
   { tag: 'never' },
 );

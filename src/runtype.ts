@@ -104,18 +104,20 @@ export interface Runtype<A = unknown> {
  * Obtains the static type associated with a Runtype.
  */
 export type Static<A extends Runtype> = A['_falseWitness'];
-
+type ValidationOptions = { failFast?: boolean };
 export function create<A extends Runtype>(
-  validate: (x: any, visited: VisitedState) => Result<Static<A>>,
+  validate: (x: any, visited: VisitedState, opts: { failFast: boolean }) => Result<Static<A>>,
   A: any,
 ): A {
   A.check = check;
   A.assert = check;
-  A._innerValidate = (value: any, visited: VisitedState) => {
+  A._innerValidate = (value: any, visited: VisitedState, opts?: ValidationOptions) => {
+    const effOpts = { failFast: true, ...opts };
     if (visited.has(value, A)) return { success: true, value };
-    return validate(value, visited);
+    return validate(value, visited, effOpts);
   };
-  A.validate = (value: any) => A._innerValidate(value, VisitedState());
+  A.validate = (value: any, opts?: ValidationOptions) =>
+    A._innerValidate(value, VisitedState(), opts);
   A.guard = guard;
   A.Or = Or;
   A.And = And;
@@ -132,7 +134,7 @@ export function create<A extends Runtype>(
     if (validated.success) {
       return validated.value;
     }
-    throw new ValidationError(validated.message, validated.key);
+    throw new ValidationError(validated.errors[0].message, validated.errors[0].key);
   }
 
   function guard(x: any): x is A {
@@ -170,8 +172,9 @@ export function innerValidate<A extends Runtype>(
   targetType: A,
   value: any,
   visited: VisitedState,
+  opts?: ValidationOptions,
 ): Result<Static<A>> {
-  return (targetType as any)._innerValidate(value, visited);
+  return (targetType as any)._innerValidate(value, visited, opts);
 }
 
 type VisitedState = {
